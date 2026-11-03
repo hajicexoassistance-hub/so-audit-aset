@@ -1,0 +1,6 @@
+{
+  "name": "Asset Management & Stock Opname Mobile",
+  "description": "Aplikasi Manajemen Aset & Stock Opname Incidental Mobile-First berbasis Google Sheets API dan Hybrid Local Storage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
