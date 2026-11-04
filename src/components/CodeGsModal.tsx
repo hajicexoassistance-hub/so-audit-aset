@@ -41,6 +41,9 @@ function setupDatabase() {
   if (sheetMaster.getLastRow() === 0) {
     sheetMaster.appendRow(headersMaster);
     sheetMaster.getRange(1, 1, 1, headersMaster.length).setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
+    sheetMaster.appendRow(['AST-101', 'Cangkul Heavy Duty Ultra', 'Peralatan', 'Alat Kebun', 'Sulaeman', 'Nursery Ciminyak', '2023', 'Gudang Kebun Blok A', 10, 10, 'Baik', 10, 0, 0, 0, 0, 'Auditor Utama', '', 'SESI-001']);
+    sheetMaster.appendRow(['AST-102', 'Sprayer Elektrik 16 Liter', 'Peralatan', 'Alat Semprot', 'Bambang Hartono', 'Nursery Ciminyak', '2024', 'Gudang Alat R.01', 3, 3, 'Baik', 3, 0, 0, 0, 0, 'Auditor Utama', '', 'SESI-001']);
+    sheetMaster.appendRow(['AST-103', 'Komputer Kasir All-In-One HP', 'Elektronik', 'Hardware IT', 'Rudi Hermansyah', 'Office Ciminyak', '2022', 'Ruang Admin', 2, 2, 'Baik', 2, 0, 0, 0, 0, 'Auditor Utama', '', 'SESI-001']);
     sheetMaster.autoResizeColumns(1, headersMaster.length);
   }
   
@@ -85,6 +88,9 @@ function setupDatabase() {
   if (sheetSesiActive.getLastRow() === 0) {
     sheetSesiActive.appendRow(headersSO);
     sheetSesiActive.getRange(1, 1, 1, headersSO.length).setFontWeight('bold').setBackground('#1d4ed8').setFontColor('#ffffff');
+    sheetSesiActive.appendRow(['AST-101', 'Cangkul Heavy Duty Ultra', 'Peralatan', 'Alat Kebun', 'Sulaeman', 'Nursery Ciminyak', '2023', 'Gudang Kebun Blok A', 10, 10, 'Baik', 10, 0, 0, 0, 0, 'Auditor Utama', '', '', 'Belum SO']);
+    sheetSesiActive.appendRow(['AST-102', 'Sprayer Elektrik 16 Liter', 'Peralatan', 'Alat Semprot', 'Bambang Hartono', 'Nursery Ciminyak', '2024', 'Gudang Alat R.01', 3, 3, 'Baik', 3, 0, 0, 0, 0, 'Auditor Utama', '', '', 'Belum SO']);
+    sheetSesiActive.appendRow(['AST-103', 'Komputer Kasir All-In-One HP', 'Elektronik', 'Hardware IT', 'Rudi Hermansyah', 'Office Ciminyak', '2022', 'Ruang Admin', 2, 2, 'Baik', 2, 0, 0, 0, 0, 'Auditor Utama', '', '', 'Belum SO']);
     sheetSesiActive.autoResizeColumns(1, headersSO.length);
   }
 }
@@ -142,8 +148,25 @@ function getInitialDataInternal(activeSheetName) {
     targetSheetName = activeSesiObj ? (activeSesiObj.Sheet_Name || 'SO_SESI_001') : 'SO_SESI_001';
   }
   
-  var sheetSO = ss.getSheetByName(targetSheetName) || sheetMaster;
-  var assets = sheetToObjects(sheetSO);
+  var sheetSO = ss.getSheetByName(targetSheetName);
+  var assets = [];
+  if (sheetSO) {
+    assets = sheetToObjects(sheetSO);
+  }
+
+  // Jika sheet sesi masih kosong tetapi Master_Assets sudah diisi oleh pengguna:
+  if (assets.length === 0 && sheetMaster) {
+    var masterAssets = sheetToObjects(sheetMaster);
+    if (masterAssets.length > 0) {
+      if (sheetSO && sheetSO.getName() !== sheetMaster.getName()) {
+        syncMasterToSO(sheetMaster, sheetSO);
+        assets = sheetToObjects(sheetSO);
+      }
+      if (assets.length === 0) {
+        assets = masterAssets;
+      }
+    }
+  }
   
   var categories = getListFromSingleColSheet(sheetKat);
   var units = getListFromSingleColSheet(sheetUnit);
@@ -154,6 +177,39 @@ function getInitialDataInternal(activeSheetName) {
     categories: categories,
     units: units
   };
+}
+
+function syncMasterToSO(sheetMaster, sheetSO) {
+  var dataM = sheetMaster.getDataRange().getValues();
+  if (dataM.length <= 1) return;
+  var colMap = {};
+  dataM[0].forEach(function(h, idx) { colMap[String(h).trim()] = idx; });
+  
+  for (var i = 1; i < dataM.length; i++) {
+    var row = dataM[i];
+    if (!row.some(function(c) { return String(c).trim() !== ''; })) continue;
+    var idA = row[colMap['ID_Asset']] || ('AST-' + (100 + i));
+    var nmA = row[colMap['Nama_Asset']] || 'Barang';
+    var kat = row[colMap['Kategori']] || 'Peralatan';
+    var jns = row[colMap['Jenis']] || '';
+    var pic = row[colMap['Penanggung_Jawab']] || '-';
+    var unt = row[colMap['Unit_Kerja']] || 'Nursery Ciminyak';
+    var thn = colMap['Tahun_Beli'] !== undefined ? row[colMap['Tahun_Beli']] : '';
+    var lok = colMap['Lokasi'] !== undefined ? row[colMap['Lokasi']] : '';
+    var jmlAsal = colMap['Jumlah_Asal'] !== undefined ? (Number(row[colMap['Jumlah_Asal']]) || 1) : 1;
+    var jml = Number(row[colMap['Jumlah']]) || jmlAsal;
+    var kond = row[colMap['Kondisi_Terakhir']] || row[colMap['Kondisi']] || 'Baik';
+    var b = Number(row[colMap['Jml_Baik']]) || (kond === 'Baik' ? jml : 0);
+    var rr = Number(row[colMap['Jml_Rusak_Ringan']]) || (kond === 'Rusak Ringan' ? jml : 0);
+    var rb = Number(row[colMap['Jml_Rusak_Berat']]) || (kond === 'Rusak Berat' ? jml : 0);
+    var hlg = Number(row[colMap['Jml_Hilang']]) || (kond === 'Hilang' ? jml : 0);
+    var msn = Number(row[colMap['Jml_Musnah']]) || (kond === 'Musnah' ? jml : 0);
+    
+    sheetSO.appendRow([
+      idA, nmA, kat, jns, pic, unt, thn, lok, jmlAsal, jml, kond,
+      b, rr, rb, hlg, msn, 'Petugas SO', '', '', 'Belum SO'
+    ]);
+  }
 }
 
 function getListFromSingleColSheet(sheet) {
@@ -210,41 +266,47 @@ function updateStockOpnameInternal(payload) {
   var sheetName = targetSesi ? targetSesi.Sheet_Name : 'SO_SESI_001';
   var sheetSO = ss.getSheetByName(sheetName);
   var sheetMaster = ss.getSheetByName('Master_Assets');
-  if (!sheetSO) throw new Error('Sheet ' + sheetName + ' tidak ditemukan');
+  if (!sheetSO) sheetSO = sheetMaster;
+  
   var dataSO = sheetSO.getDataRange().getValues();
   var idAsset = payload.ID_Asset;
-  var colMap = {}; dataSO[0].forEach(function(h, idx) { colMap[h] = idx; });
+  var colMap = {}; dataSO[0].forEach(function(h, idx) { colMap[String(h).trim()] = idx; });
   var foundRow = -1;
   for (var i = 1; i < dataSO.length; i++) {
     if (String(dataSO[i][colMap['ID_Asset']]) === String(idAsset)) { foundRow = i + 1; break; }
   }
-  if (foundRow === -1) throw new Error('Asset tidak ditemukan di sheet sesi');
+  
   var nowStr = payload.Tanggal_SO || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
   var petugas = payload.Petugas_SO || 'Petugas SO';
-  if (payload.Rincian_Kondisi) {
-    sheetSO.getRange(foundRow, colMap['Jml_Baik'] + 1).setValue(payload.Rincian_Kondisi.Baik || 0);
-    sheetSO.getRange(foundRow, colMap['Jml_Rusak_Ringan'] + 1).setValue(payload.Rincian_Kondisi.Rusak_Ringan || 0);
-    sheetSO.getRange(foundRow, colMap['Jml_Rusak_Berat'] + 1).setValue(payload.Rincian_Kondisi.Rusak_Berat || 0);
-    sheetSO.getRange(foundRow, colMap['Jml_Hilang'] + 1).setValue(payload.Rincian_Kondisi.Hilang || 0);
-    sheetSO.getRange(foundRow, colMap['Jml_Musnah'] + 1).setValue(payload.Rincian_Kondisi.Musnah || 0);
+  
+  if (foundRow !== -1) {
+    if (payload.Rincian_Kondisi) {
+      if (colMap['Jml_Baik'] !== undefined) sheetSO.getRange(foundRow, colMap['Jml_Baik'] + 1).setValue(payload.Rincian_Kondisi.Baik || 0);
+      if (colMap['Jml_Rusak_Ringan'] !== undefined) sheetSO.getRange(foundRow, colMap['Jml_Rusak_Ringan'] + 1).setValue(payload.Rincian_Kondisi.Rusak_Ringan || 0);
+      if (colMap['Jml_Rusak_Berat'] !== undefined) sheetSO.getRange(foundRow, colMap['Jml_Rusak_Berat'] + 1).setValue(payload.Rincian_Kondisi.Rusak_Berat || 0);
+      if (colMap['Jml_Hilang'] !== undefined) sheetSO.getRange(foundRow, colMap['Jml_Hilang'] + 1).setValue(payload.Rincian_Kondisi.Hilang || 0);
+      if (colMap['Jml_Musnah'] !== undefined) sheetSO.getRange(foundRow, colMap['Jml_Musnah'] + 1).setValue(payload.Rincian_Kondisi.Musnah || 0);
+    }
+    if (payload.Kondisi !== undefined && colMap['Kondisi'] !== undefined) sheetSO.getRange(foundRow, colMap['Kondisi'] + 1).setValue(payload.Kondisi);
+    if (payload.Jumlah !== undefined && colMap['Jumlah'] !== undefined) sheetSO.getRange(foundRow, colMap['Jumlah'] + 1).setValue(payload.Jumlah);
+    if (colMap['Petugas_SO'] !== undefined) sheetSO.getRange(foundRow, colMap['Petugas_SO'] + 1).setValue(petugas);
+    if (payload.Keterangan_SO !== undefined && colMap['Keterangan_SO'] !== undefined) sheetSO.getRange(foundRow, colMap['Keterangan_SO'] + 1).setValue(payload.Keterangan_SO);
+    if (colMap['Tanggal_SO'] !== undefined) sheetSO.getRange(foundRow, colMap['Tanggal_SO'] + 1).setValue(nowStr);
+    if (colMap['Status_Audit'] !== undefined) sheetSO.getRange(foundRow, colMap['Status_Audit'] + 1).setValue('Sudah SO');
   }
-  if (payload.Kondisi !== undefined) sheetSO.getRange(foundRow, colMap['Kondisi'] + 1).setValue(payload.Kondisi);
-  if (payload.Jumlah !== undefined) sheetSO.getRange(foundRow, colMap['Jumlah'] + 1).setValue(payload.Jumlah);
-  sheetSO.getRange(foundRow, colMap['Petugas_SO'] + 1).setValue(petugas);
-  if (payload.Keterangan_SO !== undefined) sheetSO.getRange(foundRow, colMap['Keterangan_SO'] + 1).setValue(payload.Keterangan_SO);
-  sheetSO.getRange(foundRow, colMap['Tanggal_SO'] + 1).setValue(nowStr);
-  sheetSO.getRange(foundRow, colMap['Status_Audit'] + 1).setValue('Sudah SO');
+
+  // Update juga ke Master_Assets
   if (sheetMaster) {
     var dataM = sheetMaster.getDataRange().getValues();
-    var colM = {}; dataM[0].forEach(function(h, idx) { colM[h] = idx; });
+    var colM = {}; dataM[0].forEach(function(h, idx) { colM[String(h).trim()] = idx; });
     for (var m = 1; m < dataM.length; m++) {
       if (String(dataM[m][colM['ID_Asset']]) === String(idAsset)) {
         var mRow = m + 1;
-        if (payload.Kondisi !== undefined) sheetMaster.getRange(mRow, colM['Kondisi_Terakhir'] + 1).setValue(payload.Kondisi);
-        if (payload.Jumlah !== undefined) sheetMaster.getRange(mRow, colM['Jumlah'] + 1).setValue(payload.Jumlah);
-        sheetMaster.getRange(mRow, colM['Petugas_SO_Terakhir'] + 1).setValue(petugas);
-        sheetMaster.getRange(mRow, colM['Tanggal_SO_Terakhir'] + 1).setValue(nowStr);
-        sheetMaster.getRange(mRow, colM['Sesi_SO_Terakhir'] + 1).setValue(payload.Sesi_SO_Terakhir);
+        if (payload.Kondisi !== undefined && colM['Kondisi_Terakhir'] !== undefined) sheetMaster.getRange(mRow, colM['Kondisi_Terakhir'] + 1).setValue(payload.Kondisi);
+        if (payload.Jumlah !== undefined && colM['Jumlah'] !== undefined) sheetMaster.getRange(mRow, colM['Jumlah'] + 1).setValue(payload.Jumlah);
+        if (colM['Petugas_SO_Terakhir'] !== undefined) sheetMaster.getRange(mRow, colM['Petugas_SO_Terakhir'] + 1).setValue(petugas);
+        if (colM['Tanggal_SO_Terakhir'] !== undefined) sheetMaster.getRange(mRow, colM['Tanggal_SO_Terakhir'] + 1).setValue(nowStr);
+        if (colM['Sesi_SO_Terakhir'] !== undefined) sheetMaster.getRange(mRow, colM['Sesi_SO_Terakhir'] + 1).setValue(payload.Sesi_SO_Terakhir);
         break;
       }
     }
@@ -288,7 +350,7 @@ function createSessionInternal(payload) {
   sheetNewSO.getRange(1, 1, 1, headersSO.length).setFontWeight('bold').setBackground('#2563eb').setFontColor('#ffffff');
   if (sheetMaster) {
     var dataMaster = sheetMaster.getDataRange().getValues();
-    var colMap = {}; dataMaster[0].forEach(function(h, idx) { colMap[h] = idx; });
+    var colMap = {}; dataMaster[0].forEach(function(h, idx) { colMap[String(h).trim()] = idx; });
     for (var m = 1; m < dataMaster.length; m++) {
       var rowM = dataMaster[m];
       var unitAset = rowM[colMap['Unit_Kerja']];
@@ -305,13 +367,31 @@ function createSessionInternal(payload) {
 }
 
 function sheetToObjects(sheet) {
+  if (!sheet) return [];
   var data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
   var headers = data[0], result = [];
   for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (!row.some(function(c) { return String(c).trim() !== ''; })) continue;
     var obj = {};
-    for (var j = 0; j < headers.length; j++) obj[headers[j]] = data[i][j];
-    obj['Rincian_Kondisi'] = { Baik: Number(obj['Jml_Baik']) || 0, Rusak_Ringan: Number(obj['Jml_Rusak_Ringan']) || 0, Rusak_Berat: Number(obj['Jml_Rusak_Berat']) || 0, Hilang: Number(obj['Jml_Hilang']) || 0, Musnah: Number(obj['Jml_Musnah']) || 0 };
+    for (var j = 0; j < headers.length; j++) {
+      var h = String(headers[j]).trim();
+      if (h) obj[h] = row[j];
+    }
+    if (!obj['ID_Asset'] || String(obj['ID_Asset']).trim() === '') {
+      obj['ID_Asset'] = 'AST-' + (100 + i);
+    }
+    if (!obj['Kondisi'] && obj['Kondisi_Terakhir']) {
+      obj['Kondisi'] = obj['Kondisi_Terakhir'];
+    }
+    obj['Rincian_Kondisi'] = {
+      Baik: Number(obj['Jml_Baik']) || 0,
+      Rusak_Ringan: Number(obj['Jml_Rusak_Ringan']) || 0,
+      Rusak_Berat: Number(obj['Jml_Rusak_Berat']) || 0,
+      Hilang: Number(obj['Jml_Hilang']) || 0,
+      Musnah: Number(obj['Jml_Musnah']) || 0
+    };
     result.push(obj);
   }
   return result;

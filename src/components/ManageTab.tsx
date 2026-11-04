@@ -311,9 +311,9 @@ export const ManageTab: React.FC<ManageTabProps> = ({
             </form>
 
             <div className="flex flex-wrap gap-1.5 pt-1">
-              {categories.map((kat) => (
+              {categories.map((kat, idx) => (
                 <span
-                  key={kat}
+                  key={`${kat}-${idx}`}
                   className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-600"
                 >
                   {kat}
@@ -350,9 +350,9 @@ export const ManageTab: React.FC<ManageTabProps> = ({
             </form>
 
             <div className="flex flex-wrap gap-1.5 pt-1">
-              {units.map((u) => (
+              {units.map((u, idx) => (
                 <span
-                  key={u}
+                  key={`${u}-${idx}`}
                   className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
                 >
                   {u}
@@ -424,8 +424,8 @@ export const ManageTab: React.FC<ManageTabProps> = ({
                 onChange={(e) => setTargetUnit(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {unitList.map((u) => (
-                  <option key={u} value={u}>
+                {unitList.map((u, idx) => (
+                  <option key={`${u}-${idx}`} value={u}>
                     {u}
                   </option>
                 ))}
@@ -500,8 +500,8 @@ export const ManageTab: React.FC<ManageTabProps> = ({
                 onChange={(e) => setKategori(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {kategoriList.map((k) => (
-                  <option key={k} value={k}>
+                {kategoriList.map((k, idx) => (
+                  <option key={`${k}-${idx}`} value={k}>
                     {k}
                   </option>
                 ))}
@@ -546,8 +546,8 @@ export const ManageTab: React.FC<ManageTabProps> = ({
                 onChange={(e) => setUnitKerja(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {unitList.filter((u) => u !== 'Semua').map((u) => (
-                  <option key={u} value={u}>
+                {unitList.filter((u) => u !== 'Semua').map((u, idx) => (
+                  <option key={`${u}-${idx}`} value={u}>
                     {u}
                   </option>
                 ))}
@@ -639,9 +639,9 @@ export const ManageTab: React.FC<ManageTabProps> = ({
             Riwayat Tab Sheet Sesi SO
           </h2>
           <div className="space-y-2">
-            {sessions.map((s) => (
+            {sessions.map((s, idx) => (
               <div
-                key={s.ID_Sesi}
+                key={`${s.ID_Sesi}-${idx}`}
                 className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2"
               >
                 <div>

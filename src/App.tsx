@@ -203,6 +203,7 @@ export default function App() {
     }
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
   const pendingAuditCount = assets.filter((a) => a.Status_Audit === 'Belum SO').length;
 
   return (
@@ -215,6 +216,13 @@ export default function App() {
           onOpenGasModal={() => setIsGasModalOpen(true)}
           onRefresh={loadData}
           isLoading={isLoading}
+          searchQuery={searchQuery}
+          onSearchChange={(q) => {
+            setSearchQuery(q);
+            if (q.trim() && activeTab !== 'audit') {
+              setActiveTab('audit');
+            }
+          }}
         />
 
         <main className="flex-1 overflow-y-auto px-4 py-4">
@@ -244,6 +252,7 @@ export default function App() {
                 <AuditTab
                   assets={assets}
                   activeSessionId={activeSessionId}
+                  searchQuery={searchQuery}
                   onSaveAudit={handleSaveAudit}
                   isSaving={isSaving}
                   onGoToManage={() => setActiveTab('manage')}

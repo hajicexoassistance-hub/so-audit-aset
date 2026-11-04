@@ -100,8 +100,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           onChange={(e) => onSelectSession(e.target.value)}
           className="w-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-all"
         >
-          {sessions.map((s) => (
-            <option key={s.ID_Sesi} value={s.ID_Sesi}>
+          {sessions.map((s, idx) => (
+            <option key={`${s.ID_Sesi}-${idx}`} value={s.ID_Sesi}>
               {s.Nama_Sesi} ({s.Target_Unit_Kerja})
             </option>
           ))}
@@ -188,9 +188,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-          {unitList.map((unit) => (
+          {unitList.map((unit, idx) => (
             <button
-              key={unit}
+              key={`${unit}-${idx}`}
               onClick={() => setSelectedUnit(unit)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
                 selectedUnit === unit

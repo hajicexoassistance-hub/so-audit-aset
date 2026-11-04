@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Asset, ConditionType, StatusAuditType, RincianKondisi } from '../types';
 import { QuickAuditModal } from './QuickAuditModal';
-import { Search, Filter, CheckCircle2, Clock, AlertTriangle, ShieldAlert, ChevronRight, User, Building2, Flame, History, MapPin } from 'lucide-react';
+import { Filter, CheckCircle2, Clock, AlertTriangle, ShieldAlert, ChevronRight, Building2, Flame, History, MapPin, UserCheck, Check, Edit2 } from 'lucide-react';
 import { formatDateIndonesian } from '../utils/dateUtils';
+import { getActiveAuditor, setActiveAuditor } from '../services/apiService';
 
 interface AuditTabProps {
   assets: Asset[];
   activeSessionId: string;
+  searchQuery: string;
   onSaveAudit: (payload: {
     ID_Asset: string;
     Kondisi: ConditionType;
@@ -21,35 +23,93 @@ interface AuditTabProps {
 export const AuditTab: React.FC<AuditTabProps> = ({
   assets,
   activeSessionId,
+  searchQuery,
   onSaveAudit,
   isSaving,
   onGoToManage,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Semua' | 'Belum SO' | 'Sudah SO'>('Semua');
   const [categoryFilter, setCategoryFilter] = useState('Semua');
   const [unitFilter, setUnitFilter] = useState('Semua');
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
-  const categories = ['Semua', ...Array.from(new Set(assets.map((a) => a.Kategori).filter(Boolean)))];
-  const units = ['Semua', ...Array.from(new Set(assets.map((a) => a.Unit_Kerja).filter(Boolean)))];
+  const [auditorName, setAuditorName] = useState(getActiveAuditor());
+  const [isEditingAuditor, setIsEditingAuditor] = useState(false);
+  const [tempAuditor, setTempAuditor] = useState(auditorName);
 
-  const filteredAssets = assets.filter((a) => {
-    if (statusFilter !== 'Semua' && a.Status_Audit !== statusFilter) return false;
-    if (categoryFilter !== 'Semua' && a.Kategori !== categoryFilter) return false;
-    if (unitFilter !== 'Semua' && a.Unit_Kerja !== unitFilter) return false;
+  const handleSaveAuditor = () => {
+    if (!tempAuditor.trim()) return;
+    setActiveAuditor(tempAuditor);
+    setAuditorName(tempAuditor.trim());
+    setIsEditingAuditor(false);
+  };
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchName = a.Nama_Asset.toLowerCase().includes(q);
-      const matchId = a.ID_Asset.toLowerCase().includes(q);
-      const matchPic = a.Penanggung_Jawab.toLowerCase().includes(q);
-      const matchUnit = a.Unit_Kerja.toLowerCase().includes(q);
-      const matchLokasi = a.Lokasi ? a.Lokasi.toLowerCase().includes(q) : false;
-      const matchTahun = a.Tahun_Beli ? String(a.Tahun_Beli).toLowerCase().includes(q) : false;
-      if (!matchName && !matchId && !matchPic && !matchUnit && !matchLokasi && !matchTahun) return false;
+  const categories = [
+    'Semua',
+    ...Array.from(
+      new Set(assets.map((a) => String(a.Kategori || '').trim()).filter(Boolean))
+    ),
+  ];
+
+  const units = [
+    'Semua',
+    ...Array.from(
+      new Set(assets.map((a) => String(a.Unit_Kerja || '').trim()).filter(Boolean))
+    ),
+  ];
+
+  // 1. Filter by Category, Unit, and Search Query first
+  const categoryUnitSearchFiltered = assets.filter((a) => {
+    if (categoryFilter !== 'Semua') {
+      const catA = String(a.Kategori || '').trim().toLowerCase();
+      const catF = String(categoryFilter).trim().toLowerCase();
+      if (catA !== catF) return false;
     }
 
+    if (unitFilter !== 'Semua') {
+      const unitA = String(a.Unit_Kerja || '').trim().toLowerCase();
+      const unitF = String(unitFilter).trim().toLowerCase();
+      if (unitA !== unitF) return false;
+    }
+
+    if (searchQuery && searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      const matchName = String(a.Nama_Asset || '').toLowerCase().includes(q);
+      const matchId = String(a.ID_Asset || '').toLowerCase().includes(q);
+      const matchKat = String(a.Kategori || '').toLowerCase().includes(q);
+      const matchJenis = String(a.Jenis || '').toLowerCase().includes(q);
+      const matchPic = String(a.Penanggung_Jawab || '').toLowerCase().includes(q);
+      const matchUnit = String(a.Unit_Kerja || '').toLowerCase().includes(q);
+      const matchLokasi = a.Lokasi ? String(a.Lokasi).toLowerCase().includes(q) : false;
+      const matchTahun = a.Tahun_Beli ? String(a.Tahun_Beli).toLowerCase().includes(q) : false;
+      const matchKet = a.Keterangan_SO ? String(a.Keterangan_SO).toLowerCase().includes(q) : false;
+
+      if (
+        !matchName &&
+        !matchId &&
+        !matchKat &&
+        !matchJenis &&
+        !matchPic &&
+        !matchUnit &&
+        !matchLokasi &&
+        !matchTahun &&
+        !matchKet
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Dynamic counts for status filter chips based on active category/unit/search filter
+  const countSemua = categoryUnitSearchFiltered.length;
+  const countBelum = categoryUnitSearchFiltered.filter((a) => a.Status_Audit === 'Belum SO').length;
+  const countSudah = categoryUnitSearchFiltered.filter((a) => a.Status_Audit === 'Sudah SO').length;
+
+  // 2. Apply status filter for final rendered assets list
+  const filteredAssets = categoryUnitSearchFiltered.filter((a) => {
+    if (statusFilter !== 'Semua' && a.Status_Audit !== statusFilter) return false;
     return true;
   });
 
@@ -110,22 +170,44 @@ export const AuditTab: React.FC<AuditTabProps> = ({
 
   return (
     <div className="space-y-3 pb-24 pt-2 animate-in fade-in">
-      {/* 1. Fast Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Cari cangkul, A4, HP, Nursery Ciminyak, PIC..."
-          className="w-full bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 border border-slate-200 dark:border-slate-700 rounded-2xl pl-10 pr-4 py-3 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
-        />
-        {searchQuery && (
+      {/* 1. Active Auditor Profile Bar (Swapped from Header to Content) */}
+      <div className="flex items-center justify-between bg-white dark:bg-slate-800 px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs shadow-sm">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <UserCheck className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold shrink-0">Petugas SO:</span>
+          {isEditingAuditor ? (
+            <input
+              type="text"
+              value={tempAuditor}
+              onChange={(e) => setTempAuditor(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveAuditor()}
+              autoFocus
+              className="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white px-2 py-0.5 rounded text-xs font-bold border border-blue-500 focus:outline-none min-w-0 flex-1"
+            />
+          ) : (
+            <strong className="text-slate-900 dark:text-white font-bold truncate text-xs">
+              {auditorName}
+            </strong>
+          )}
+        </div>
+
+        {isEditingAuditor ? (
           <button
-            onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-600 p-1"
+            onClick={handleSaveAuditor}
+            className="p-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shrink-0 ml-1"
           >
-            Clear
+            <Check className="w-3.5 h-3.5" />
+          </button>
+        ) : (
+          <button
+            onClick={() => {
+              setTempAuditor(auditorName);
+              setIsEditingAuditor(true);
+            }}
+            className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors shrink-0"
+            title="Ubah Nama Petugas SO"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
@@ -142,9 +224,9 @@ export const AuditTab: React.FC<AuditTabProps> = ({
                 : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
             }`}
           >
-            {st === 'Semua' && `Semua (${assets.length})`}
-            {st === 'Belum SO' && `Belum SO (${assets.filter((a) => a.Status_Audit === 'Belum SO').length})`}
-            {st === 'Sudah SO' && `Sudah SO (${assets.filter((a) => a.Status_Audit === 'Sudah SO').length})`}
+            {st === 'Semua' && `Semua (${countSemua})`}
+            {st === 'Belum SO' && `Belum SO (${countBelum})`}
+            {st === 'Sudah SO' && `Sudah SO (${countSudah})`}
           </button>
         ))}
       </div>
@@ -157,8 +239,8 @@ export const AuditTab: React.FC<AuditTabProps> = ({
           className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm truncate"
         >
           <option value="Semua">Kategori: Semua</option>
-          {categories.filter((c) => c !== 'Semua').map((c) => (
-            <option key={c} value={c}>
+          {categories.filter((c) => c !== 'Semua').map((c, idx) => (
+            <option key={`${c}-${idx}`} value={c}>
               Kategori: {c}
             </option>
           ))}
@@ -170,8 +252,8 @@ export const AuditTab: React.FC<AuditTabProps> = ({
           className="w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm truncate"
         >
           <option value="Semua">Unit: Semua</option>
-          {units.filter((u) => u !== 'Semua').map((u) => (
-            <option key={u} value={u}>
+          {units.filter((u) => u !== 'Semua').map((u, idx) => (
+            <option key={`${u}-${idx}`} value={u}>
               Unit: {u}
             </option>
           ))}
@@ -201,13 +283,13 @@ export const AuditTab: React.FC<AuditTabProps> = ({
             )}
           </div>
         ) : (
-          filteredAssets.map((asset) => {
+          filteredAssets.map((asset, idx) => {
             const isAudited = asset.Status_Audit === 'Sudah SO';
             const prev = asset.Audit_Sebelumnya;
             const rincian = asset.Rincian_Kondisi;
             return (
               <div
-                key={asset.ID_Asset}
+                key={`${asset.ID_Asset}-${idx}`}
                 onClick={() => setSelectedAsset(asset)}
                 className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all cursor-pointer shadow-sm active:scale-[0.99] group relative"
               >

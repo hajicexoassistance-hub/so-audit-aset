@@ -176,6 +176,78 @@ export function downloadExcelTemplate() {
   const wsSesi = XLSX.utils.aoa_to_sheet(sesiData);
   XLSX.utils.book_append_sheet(wb, wsSesi, 'Sesi_SO');
 
+  // 5. Sheet Contoh Sesi SO (SO_2026_Q1)
+  const sampleSoData = [
+    [
+      'ID_Asset',
+      'Nama_Asset',
+      'Kategori',
+      'Jenis',
+      'Penanggung_Jawab',
+      'Unit_Kerja',
+      'Tahun_Beli',
+      'Lokasi',
+      'Jumlah_Asal',
+      'Jumlah',
+      'Kondisi',
+      'Jml_Baik',
+      'Jml_Rusak_Ringan',
+      'Jml_Rusak_Berat',
+      'Jml_Hilang',
+      'Jml_Musnah',
+      'Petugas_SO',
+      'Keterangan_SO',
+      'Tanggal_SO',
+      'Status_Audit',
+    ],
+    [
+      'AST-101',
+      'Cangkul Heavy Duty Ultra',
+      'Peralatan',
+      'Alat Kebun',
+      'Sulaeman',
+      'Nursery Ciminyak',
+      2023,
+      'Gudang Kebun Blok A',
+      10,
+      10,
+      'Baik',
+      7,
+      1,
+      1,
+      0,
+      1,
+      'Auditor Utama',
+      '7 Baik, 1 Baret, 1 Gagang retak, 1 Karatan musnah',
+      '2026-03-01 10:00:00',
+      'Sudah SO',
+    ],
+    [
+      'AST-102',
+      'Sprayer Elektrik 16 Liter',
+      'Peralatan',
+      'Alat Semprot',
+      'Bambang Hartono',
+      'Nursery Ciminyak',
+      2024,
+      'Gudang Alat R.01',
+      3,
+      3,
+      'Rusak Ringan',
+      2,
+      1,
+      0,
+      0,
+      0,
+      'Auditor Utama',
+      '2 Unit mulus, 1 selang bocor',
+      '2026-03-01 11:30:00',
+      'Sudah SO',
+    ],
+  ];
+  const wsSampleSo = XLSX.utils.aoa_to_sheet(sampleSoData);
+  XLSX.utils.book_append_sheet(wb, wsSampleSo, 'SO_2026_Q1');
+
   // Write file
   XLSX.writeFile(wb, 'Template_Stock_Opname_Multi_Sheet.xlsx');
 }
@@ -345,8 +417,21 @@ export async function parseUploadedExcel(file: File): Promise<{
           const wsAssets = workbook.Sheets[sheetAssetsName];
           const rawRows: any[] = XLSX.utils.sheet_to_json(wsAssets, { defval: '' });
 
+          const seenIds = new Map<string, number>();
+
           parsedAssets = rawRows.map((row, idx) => {
-            const idAsset = row.ID_Asset || row.Kode_Asset || row['ID Asset'] || row.ID || `AST-${100 + idx}`;
+            let baseId = String(
+              row.ID_Asset || row.Kode_Asset || row['ID Asset'] || row.ID || `AST-${100 + idx}`
+            ).trim();
+
+            if (!baseId) {
+              baseId = `AST-${100 + idx}`;
+            }
+
+            const count = seenIds.get(baseId) || 0;
+            seenIds.set(baseId, count + 1);
+            const idAsset = count === 0 ? baseId : `${baseId}-${count + 1}`;
+
             const namaAsset = row.Nama_Asset || row['Nama Asset'] || row.Nama_Barang || row.Nama || 'Barang Tanpa Nama';
             const kategori = row.Kategori || 'Peralatan';
             const jenis = row.Jenis || row.Tipe || 'Umum';
@@ -371,7 +456,7 @@ export async function parseUploadedExcel(file: File): Promise<{
             const isAudited = Boolean(row.Tanggal_SO || row.Status_Audit === 'Sudah SO');
 
             return {
-              ID_Asset: String(idAsset),
+              ID_Asset: idAsset,
               Nama_Asset: String(namaAsset),
               Kategori: String(kategori),
               Jenis: String(jenis),
